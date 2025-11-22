@@ -1,0 +1,64 @@
+name: Decrypt macOS image
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  decrypt:
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare mount directory
+        run: mkdir -p mnt
+
+      - name: Try to attach as DMG (UDIF)
+        id: attach_dmg
+        continue-on-error: true
+        run: |
+          echo "Trying to attach as DMG/UDIF..."
+          PASS="zhiyuanbyg666"
+          echo "$PASS" | hdiutil attach encrypted/mydisk.dd \
+            -stdinpass \
+            -mountpoint mnt \
+            -verbose
+
+      - name: Try to attach as RAW disk if DMG failed
+        if: steps.attach_dmg.outcome == 'failure'
+        id: attach_raw
+        continue-on-error: true
+        run: |
+          echo "DMG attach failed, trying RAW image..."
+          PASS="zhiyuanbyg666"
+          echo "$PASS" | hdiutil attach encrypted/mydisk.dd \
+            -stdinpass \
+            -imagekey diskimage-class=CRawDiskImage \
+            -nomount \
+            -verbose
+          
+          echo "Listing disks after attach attempt:"
+          diskutil list
+
+      - name: Show mount/volumes
+        run: |
+          echo "Mounted under /Volumes:"
+          ls /Volumes || true
+          echo "Content of mnt/:"
+          ls mnt || true
+
+      - name: Archive mount directory
+        run: |
+          if [ -d mnt ] && [ "$(ls -A mnt 2>/dev/null)" ]; then
+            zip -r decrypted_content.zip mnt
+          else
+            echo "No content mounted" > decrypt_result.txt
+            zip decrypted_content.zip decrypt_result.txt
+          fi
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: decrypted-content
+          path: decrypted_content.zip
