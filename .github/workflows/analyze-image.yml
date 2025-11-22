@@ -1,0 +1,25 @@
+name: Analyze image
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Basic file info
+        run: |
+          echo "==== file encrypted/mydisk.dd ===="
+          file encrypted/mydisk.dd || echo "file command failed"
+
+          echo
+          echo "==== hexdump (first 256 bytes) ===="
+          hexdump -C encrypted/mydisk.dd | head -n 20 || true
+
+          echo
+          echo "==== strings (first 100 lines) ===="
+          strings -a encrypted/mydisk.dd | head -n 100 || true
